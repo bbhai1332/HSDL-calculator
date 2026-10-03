@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Weight Calculator</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4F46E5">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #4F46E5; --bg-gradient: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); --surface: #ffffff; --text-main: #1e293b; --text-muted: #64748b; --border: #e2e8f0; }
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; min-height: 100vh; background: var(--bg-gradient); display: flex; justify-content: center; align-items: center; }
+        .container { background: var(--surface); width: 100%; max-width: 420px; padding: 30px 25px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); box-sizing: border-box; }
+        h2 { margin: 0 0 25px 0; color: var(--text-main); text-align: center; font-weight: 800; font-size: 24px; letter-spacing: -0.5px; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-main); font-size: 14px; }
+        .hint { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+        input { width: 100%; padding: 14px 16px; box-sizing: border-box; border: 2px solid var(--border); border-radius: 12px; font-size: 16px; font-family: 'Inter', sans-serif; background: #f8fafc; }
+        input:focus { outline: none; border-color: var(--primary); background: #ffffff; }
+        button { margin-top: 10px; width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .error { color: #ef4444; font-size: 14px; margin-top: 15px; text-align: center; display: block; font-weight: 600; }
+        .results { margin-top: 30px; display: none; }
+        .results-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .result-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 16px; padding: 20px 15px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+        .result-card.main-card { background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); color: white; border: none; padding: 25px 15px; }
+        .result-icon { font-size: 24px; margin-bottom: 8px; }
+        .result-label { font-size: 12px; text-transform: uppercase; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+        .main-card .result-label { color: rgba(255, 255, 255, 0.8); }
+        .result-value { font-weight: 800; color: var(--text-main); font-size: 32px; letter-spacing: -0.5px; }
+        .main-card .result-value { color: white; font-size: 36px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>✨ Weight Calculator</h2>
+        <div class="input-group"><label>Net Weight <span class="hint">(Point = kg, No Point = g)</span></label><input type="number" id="netWeight" step="any" placeholder="e.g. 1.5 or 1500"></div>
+        <div class="input-group"><label>Output Weight <span class="hint">(Point = kg, No Point = g)</span></label><input type="number" id="outputWeight" step="any" placeholder="e.g. 0.3 or 300"></div>
+        <div class="input-group"><label>Rehydrate Weight <span class="hint">(Point = kg, No Point = g)</span></label><input type="number" id="rehydrateWeight" step="any" placeholder="e.g. 0.1 or 100"></div>
+        <button onclick="calculate()">Calculate Now</button>
+        <span id="errorMsg" class="error"></span>
+        <div class="results" id="results">
+            <div class="results-grid">
+                <div class="result-card main-card">
+                    <div class="result-label">Output (Pouches × Grams / Total)</div>
+                    <div class="result-value" id="resCombined">-</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-icon">💧</div>
+                    <div class="result-label">Water Needed</div>
+                    <div class="result-value" id="resWater">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }
+        function calculate() {
+            const netStr = document.getElementById('netWeight').value;
+            const outputStr = document.getElementById('outputWeight').value;
+            const rehydrateStr = document.getElementById('rehydrateWeight').value;
+            const netRaw = parseFloat(netStr);
+            const outputRaw = parseFloat(outputStr);
+            const rehydrateRaw = parseFloat(rehydrateStr);
+            const errorMsg = document.getElementById('errorMsg');
+            const resultsDiv = document.getElementById('results');
+            errorMsg.innerText = "";
+            resultsDiv.style.display = 'none';
+            if (isNaN(netRaw) || isNaN(outputRaw) || isNaN(rehydrateRaw)) { errorMsg.innerText = "⚠️ Please enter valid numbers in all fields."; return; }
+            const net = netStr.includes('.') ? netRaw * 1000 : netRaw;
+            const output = outputStr.includes('.') ? outputRaw * 1000 : outputRaw;
+            const rehydrate = rehydrateStr.includes('.') ? rehydrateRaw * 1000 : rehydrateRaw;
+            const rawPouches = net / rehydrate;
+            const pouchesInt = Math.floor(rawPouches);
+            const pouches = (rawPouches - pouchesInt) >= 0.80 ? pouchesInt + 1 : pouchesInt;
+            if (pouches === 0) { errorMsg.innerText = "⚠️ Pouches calculated to 0. Cannot calculate further."; return; }
+            const grams = Math.floor(output / pouches);
+            const water = Math.floor((((net - output) / pouches) / 5) + 0.5) * 5;
+            const total = pouches * grams;
+            resultsDiv.style.display = 'block';
+            document.getElementById('resCombined').innerText = `${pouches} × ${grams}g / ${total}g`;
+            document.getElementById('resWater').innerText = `${water}g`;
+        }
+    </script>
+</body>
+</html>
